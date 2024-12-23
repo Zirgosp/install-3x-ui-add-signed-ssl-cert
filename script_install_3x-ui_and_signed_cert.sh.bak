@@ -1,0 +1,124 @@
+#!/bin/bash
+
+# Устанавливаем 3x-ui панель для VLESS и сертификаты на 10 лет
+
+# Проверяем, что скрипт выполняется с правами root
+if [ "$EUID" -ne 0 ]; then
+  echo "Пожалуйста, запускайте этот скрипт с правами root."
+  exit 1
+fi
+
+# Установка OpenSSL
+if ! command -v openssl &> /dev/null; then
+  sudo apt update && sudo apt install -y openssl
+  if [ $? -ne 0 ]; then
+    exit 1
+  fi
+fi
+
+# Функция ожидания нажатия Enter
+wait_for_enter() {
+  echo -e "Нажмите Enter, чтобы продолжить..."
+  read -r
+}
+
+# Установка 3X-UI
+if ! command -v x-ui &> /dev/null; then
+  bash <(curl -Ls https://raw.githubusercontent.com/MHSanaei/3x-ui/master/install.sh)
+  if [ $? -ne 0 ]; then
+    exit 1
+  fi
+else
+  echo "3X-UI уже установлен."
+fi
+
+# Запуск 3X-UI
+# systemctl daemon-reload
+# if systemctl list-units --full -all | grep -Fq 'x-ui.service'; then
+#   systemctl enable x-ui
+#   systemctl start x-ui
+# else
+#   x-ui
+# fi
+
+# Установка SpeedTest
+echo ""
+read -p "Установить SpeedTest ? (y/n): " answer
+
+if [[ "$answer" == "y" ]]; then
+    curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | sudo bash
+    apt install speedtest-cli
+    echo "Speedtest CLI установлен"
+fi
+
+echo ""
+
+# Генерация сертификата
+CERT_DIR="/etc/ssl/self_signed_cert"
+CERT_NAME="self_signed"
+DAYS_VALID=3650
+mkdir -p "$CERT_DIR"
+CERT_PATH="$CERT_DIR/$CERT_NAME.crt"
+KEY_PATH="$CERT_DIR/$CERT_NAME.key"
+
+openssl req -x509 -nodes -days $DAYS_VALID -newkey rsa:2048 \
+  -keyout "$KEY_PATH" \
+  -out "$CERT_PATH" \
+  -subj "/C=US/ST=State/L=City/O=Organization/OU=Department/CN=example.com"
+
+if [ $? -eq 0 ]; then
+  echo "SSL CERTIFICATE PATH: $CERT_PATH"
+  echo "SSL KEY PATH: $KEY_PATH"
+else
+  exit 1
+fi
+
+# Активация Firewall
+echo ""
+read -p "Вы хотите активировать Firewall ? (y/n): " answer
+
+if [[ "$answer" == "y" ]]; then
+    # Запрос порта SSH
+    SSH_PORT=$(grep -i "Port " /etc/ssh/sshd_config | awk '{print $2}')
+    echo "Порт SSH: $SSH_PORT будет добавлен в исключения Firewall"
+    echo ""
+    
+    # Запрос порта 3x-UI у пользователя
+    read -p "Введите номер порта который был выдан при установке 3X-UI панели: " PORT
+    
+    # Проверяем статус UFW
+    ufw_status=$(ufw status | grep -i "")
+    
+    if [[ "$ufw_status" == *"inactive"* ]]; then
+        echo "Включаем UFW"
+        ufw enable
+        ufw allow  "$SSH_PORT"/tcp
+        ufw allow $PORT/tcp
+        ufw allow 443/tcp
+        ufw reload
+        ufw status numbered
+    else
+        echo "UFW включен."
+        ufw allow  "$SSH_PORT"/tcp
+        ufw allow $PORT/tcp
+        ufw allow 443/tcp
+        ufw reload
+        ufw status numbered
+    fi
+else
+    echo "Проверка статуса Firewall"
+    ufw status verbose
+fi
+
+echo ""
+
+# Финальное сообщение
+echo "============================================================"
+echo "   Установка завершена, ключи сгенерированы!"
+echo "   Осталось только пути ключей прописать в панели управления 3x-ui"
+echo "1) Зайди по ссылке сверху, введи логин и пароль, который сгенерировал скрипт"
+echo "2) После успешной авторизации перейти в Настройки панели"
+echo "3) Путь к файлу ПУБЛИЧНОГО ключа сертификата - сюда вставить путь /etc/ssl/self_signed_cert/self_signed.crt"
+echo "4) Путь к файлу ПРИВАТНОГО ключа сертификата - сюда вставить путь /etc/ssl/self_signed_cert/self_signed.key"
+echo "5) Сохраняем и перегружаем панель"
+echo "============================================================"
