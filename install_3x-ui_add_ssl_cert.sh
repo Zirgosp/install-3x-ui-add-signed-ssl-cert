@@ -40,7 +40,7 @@ if [[ "$ufw_status" == *"inactive"* ]]; then
         # Запрос порта 3x-UI у пользователя
         echo ""
         read -p "Введите номер порта который был выдан при установке 3X-UI панели: " PORT
-        
+
         # Включаем UFW и добавляем порты в разрешенные
         ufw enable
 
@@ -52,7 +52,7 @@ if [[ "$ufw_status" == *"inactive"* ]]; then
           ufw allow  "$SSH_PORT"/tcp
           echo "Порт SSH: $SSH_PORT добавлен в список разрешенных Firewall"
         fi
-        
+
         ufw allow $PORT/tcp
         ufw allow 443/tcp
         ufw reload
@@ -63,7 +63,7 @@ else
     # Запрос порта 3x-UI у пользователя
     echo ""
     read -p "Введите номер порта 3X-UI панели: " PORT
-        
+
     echo "Firewall уже активен, порты $PORT и 443 добавлены в в список разрешенных"
     ufw allow $PORT/tcp
     ufw allow 443/tcp
