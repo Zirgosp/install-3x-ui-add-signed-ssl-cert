@@ -24,7 +24,7 @@ echo ""
 read -p "Вы хотите сгенерировать-подписать SSL сертификат и встроить его в 3X-UI ? (y/n): " answer
 
 if [[ "$answer" == "y" ]]; then
-  bash <(curl -Ls https://raw.githubusercontent.com/SibMan54/3x-ui-auto_add_ssl/refs/heads/main/3x-ui-autossl.sh)
+  bash <(curl -Ls https://raw.githubusercontent.com/SibMan54/install-3x-ui-add-signed-ssl-cert/refs/heads/main/3x-ui-autossl.sh)
   if [ $? -ne 0 ]; then
     exit 1
   fi
@@ -76,6 +76,9 @@ echo ""
 read -p "Установить SpeedTest ? (y/n): " answer
 if [[ "$answer" == "y" ]]; then
     curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | sudo bash
+    if [ $? -ne 0 ]; then
+      exit 1
+    fi
     apt install speedtest-cli
     rm -f /etc/apt/sources.list.d/ookla_speedtest-cli.list
     echo "Speedtest CLI установлен"
@@ -84,7 +87,7 @@ fi
 echo ""
 
 # Финальное сообщение
-echo "==============================================================================="
+echo "============================================================================="
 echo " Установка завершена, SSL-сертификат сгенерирован и прописан в панель 3X-UI!"
 echo " Для применения изменений необходимо перезагрузить панель, выполнив команды sudo x-ui -> 13 -> Enter"
 echo "============================================================================="
