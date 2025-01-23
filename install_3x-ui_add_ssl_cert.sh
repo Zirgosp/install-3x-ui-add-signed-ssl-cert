@@ -9,6 +9,26 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 
+# Функция для извлечения порта 3x-UI
+get_3x_ui_port() {
+    PORT=$(sudo x-ui settings | grep -i 'port' | grep -oP '\d+')
+    if [[ -z "$PORT" ]]; then
+        echo "Не удалось автоматически определить порт 3x-UI. Пожалуйста, введите порт вручную."
+        read -p "Введите номер порта 3x-UI панели: " PORT
+    fi
+    echo "$PORT"
+}
+
+# Функция для извлечения порта SSH
+get_ssh_port() {
+    SSH_PORT=$(grep -i "^Port " /etc/ssh/sshd_config | awk '{print $2}')
+    if [[ -z "$SSH_PORT" ]]; then
+        SSH_PORT=22 # Используем порт по умолчанию
+    fi
+    echo "$SSH_PORT"
+}
+
+
 # Установка 3X-UI
 if ! command -v x-ui &> /dev/null; then
   bash <(curl -Ls https://raw.githubusercontent.com/MHSanaei/3x-ui/master/install.sh)
@@ -30,46 +50,66 @@ if [[ "$answer" == "y" ]]; then
   fi
 fi
 
-# Активация Firewall
+
 # Проверяем статус UFW
-ufw_status=$(ufw status | grep -i "")
-if [[ "$ufw_status" == *"inactive"* ]]; then
-    echo ""
-    read -p "Вы хотите активировать Firewall ? (y/n): " answer
-    if [[ "$answer" == "y" ]]; then
-        # Запрос порта 3x-UI у пользователя
-        echo ""
-        read -p "Введите номер порта который был выдан при установке 3X-UI панели: " PORT
+ufw_status=$(ufw status | grep -i "Status:" | awk '{print $2}')
 
-        # Включаем UFW и добавляем порты в разрешенные
-        ufw enable
+if [[ "$ufw_status" == "active" ]]; then
+    echo "Firewall уже активен."
 
-        echo ""
-        read -p "Добавить порт SSH в список разрешенных ? (y/n): " answer
-        if [[ "$answer" == "y" ]]; then
-          # Запрос порта SSH
-          SSH_PORT=$(grep -i "Port " /etc/ssh/sshd_config | awk '{print $2}')
-          ufw allow  "$SSH_PORT"/tcp
-          echo "Порт SSH: $SSH_PORT добавлен в список разрешенных Firewall"
-        fi
+    # Извлекаем порт 3x-UI
+    PORT=$(get_3x_ui_port)
+    # Разрешаем порт 3x-UI, если он ещё не добавлен
+    ufw allow "$PORT"/tcp
+    echo "Порт 3x-UI: $PORT добавлен в список разрешённых."
 
-        ufw allow $PORT/tcp
-        ufw allow 443/tcp
-        ufw reload
-        ufw status numbered
-    fi
-    echo "Firewall был активен, порты $PORT и 443 добавлены в в список разрешенных"
-else
-    # Запрос порта 3x-UI у пользователя
-    echo ""
-    read -p "Введите номер порта 3X-UI панели: " PORT
+    # Извлекаем порт SSH
+    SSH_PORT=$(get_ssh_port)
+    # Разрешаем порт SSH, если он ещё не добавлен
+    ufw allow "$SSH_PORT"/tcp
+    echo "Порт SSH: $SSH_PORT добавлен в список разрешённых."
 
-    echo "Firewall уже активен, порты $PORT и 443 добавлены в в список разрешенных"
-    ufw allow $PORT/tcp
+    # Разрешаем порт 443, если он ещё не добавлен
     ufw allow 443/tcp
+    echo "Порт 443 добавлен в список разрешённых."
+
+    # Применяем изменения
     ufw reload
     ufw status numbered
+else
+    echo "Firewall не активен."
+    echo ""
+    read -p "Вы хотите активировать Firewall? (y/n): " answer
+
+    if [[ "$answer" == "y" ]]; then
+        # Активируем Firewall
+        ufw enable
+
+        # Извлекаем порт 3x-UI
+        PORT=$(get_3x_ui_port)
+        # Разрешаем порт 3x-UI, если он ещё не добавлен
+        ufw allow "$PORT"/tcp
+        echo "Порт 3x-UI: $PORT добавлен в список разрешённых."
+
+        # Извлекаем порт SSH
+        SSH_PORT=$(get_ssh_port)
+        # Разрешаем порт SSH, если он ещё не добавлен
+        ufw allow "$SSH_PORT"/tcp
+        echo "Порт SSH: $SSH_PORT добавлен в список разрешённых."
+
+        # Разрешаем порт 443
+        ufw allow 443/tcp
+        echo "Порт 443 добавлен в список разрешённых."
+
+        # Применяем изменения
+        ufw reload
+        ufw status numbered
+    else
+        echo "Firewall не активирован."
+    fi
 fi
+
+
 
 # Установка SpeedTest
 echo ""
