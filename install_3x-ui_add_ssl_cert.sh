@@ -4,10 +4,11 @@
 
 ##### COLOR #####
 
-# Цвета
-GREEN='\033[1;32m'
+# Определение цветов
+RED='\033[0;31m'
+GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-RED='\033[1;31m'
+BLUE='\033[0;34m'
 CYAN='\033[1;36m'
 NC='\033[0m' # Сброс цвета
 
@@ -15,7 +16,6 @@ NC='\033[0m' # Сброс цвета
 CHECK_MARK="${GREEN}✅${NC}"
 WARNING="${YELLOW}⚠${NC}"
 CROSS="${RED}❌${NC}"
-QUESTION="${CYAN}❓${NC}"
 
 # Функция для вывода успешных сообщений
 success_message() {
@@ -33,8 +33,8 @@ error_message() {
 }
 
 # Функция для вывода запросов
-ask_message() {
-    echo -e "${QUESTION} ${CYAN}$1${NC}"
+info_message() {
+    echo -e "${BLUE}$1${NC}"
 }
 
 ##### END COLOR #####
@@ -47,29 +47,33 @@ fi
 
 # Установка 3X-UI
 if ! command -v x-ui &> /dev/null; then
-  bash <(curl -Ls https://raw.githubusercontent.com/MHSanaei/3x-ui/master/install.sh)
-  if [ $? -ne 0 ]; then
-    error_message "Ошибка установки 3X-UI панели"
-    exit 1
-  else
-    success_message "3X-UI установлен."
-  fi
+    if bash <(curl -Ls https://raw.githubusercontent.com/MHSanaei/3x-ui/master/install.sh); then
+        success_message "3X-UI установлен."
+    else
+        error_message "Ошибка установки 3X-UI панели."
+        exit 1
+    fi
 else
-  success_message "3X-UI уже установлен."
+    success_message "3X-UI уже установлен."
 fi
 
 # Генерация сертификата
-echo ""
-ask_message "Вы хотите сгенерировать-подписать SSL сертификат и встроить его в 3X-UI ? (y/n):"
-read -p answer
-if [[ "$answer" == "y" ]]; then
-  bash <(curl -Ls https://raw.githubusercontent.com/SibMan54/install-3x-ui-add-signed-ssl-cert/refs/heads/main/3x-ui-autossl.sh)
-  if [ $? -ne 0 ]; then
-    error_message "Ошибка при генерации SSL сертификата"
-    exit 1
-  else
-    success_message "SSL сертификат успешно сгенерирован и встроин в 3X-UI панель"
-  fi
+ssl_detected=$(grep -a 'webCertFile' /etc/x-ui/x-ui.db)
+if [ -n "$ssl_detected" ]; then  # Check if the variable is non-empty
+    success_message "SSL уже встроин в 3X-UI панель"
+else
+    echo ""
+    read -p "$(echo -e "${YELLOW}Вы хотите сгенерировать-подписать SSL сертификат и встроить его в 3X-UI ? (y/n): ${NC}")" answer
+    if [[ "$answer" == "y" ]]; then
+      if bash <(curl -Ls https://raw.githubusercontent.com/SibMan54/install-3x-ui-add-signed-ssl-cert/refs/heads/main/3x-ui-autossl.sh); then
+        success_message "SSL сертификат успешно сгенерирован и встроин в 3X-UI панель."
+      else
+        error_message "Ошибка при генерации SSL сертификата."
+        exit 1
+      fi
+    else
+        warning_message "SSL сертификат НЕ сгенерирован."
+    fi
 fi
 
 
@@ -80,7 +84,7 @@ get_3x_ui_port() {
     PORT=$(sudo x-ui settings | grep -i 'port' | grep -oP '\d+')
     if [[ -z "$PORT" ]]; then
         warning_message "Не удалось автоматически определить порт 3x-UI."
-        ask_message "Введите номер порта 3x-UI панели:"
+        read -p "$(echo -e "${YELLOW}Введите номер порта 3x-UI панели:${NC}"
         read -r PORT
     fi
     echo "$PORT"
@@ -88,6 +92,7 @@ get_3x_ui_port() {
 
 # Функция для извлечения порта SSH
 get_ssh_port() {
+    # SSH_PORT=$(grep -i "^Port " /etc/ssh/sshd_config | awk '{print $2}')
     SSH_PORT=$(awk '$1 == "Port" {print $2; exit}' /etc/ssh/sshd_config)
     if [[ -z "$SSH_PORT" ]]; then
         SSH_PORT=22 # Используем порт по умолчанию
@@ -108,13 +113,13 @@ ufw_status=$(ufw status | grep -i "Status:" | awk '{print $2}')
 if [[ "$ufw_status" == "active" ]]; then
     success_message "Firewall уже активен."
 
-    # Извлекаем порт 3x-UI и добавляем его
-    PORT=$(get_3x_ui_port)
-    add_port_to_ufw "$PORT"
-
     # Извлекаем порт SSH и добавляем его
     SSH_PORT=$(get_ssh_port)
     add_port_to_ufw "$SSH_PORT"
+
+    # Извлекаем порт 3x-UI и добавляем его
+    PORT=$(get_3x_ui_port)
+    add_port_to_ufw "$PORT"
 
     # Добавляем порт 443
     add_port_to_ufw 443
@@ -123,22 +128,20 @@ if [[ "$ufw_status" == "active" ]]; then
     ufw reload > /dev/null 2>&1
     ufw status numbered
 else
-    warning_message "Firewall не активен."
     echo ""
-    ask_message "Вы хотите активировать Firewall? (y/n):"
-    read -r answer
+    read -p "$(echo -e "${YELLOW}Вы хотите активировать Firewall? (y/n): ${NC}")" answer
     if [[ "$answer" == "y" ]]; then
         # Активируем Firewall
-        ufw enable > /dev/null 2>&1
+        echo "y" | ufw enable > /dev/null 2>&1
         success_message "Firewall активирован."
-
-        # Извлекаем порт 3x-UI и добавляем его
-        PORT=$(get_3x_ui_port)
-        add_port_to_ufw "$PORT"
 
         # Извлекаем порт SSH и добавляем его
         SSH_PORT=$(get_ssh_port)
         add_port_to_ufw "$SSH_PORT"
+
+        # Извлекаем порт 3x-UI и добавляем его
+        PORT=$(get_3x_ui_port)
+        add_port_to_ufw "$PORT"
 
         # Добавляем порт 443
         add_port_to_ufw 443
@@ -154,30 +157,36 @@ fi
 ##### END FIREWALL #####
 
 
-# Установка SpeedTest
+# Проверка и установка SpeedTest
 echo ""
-ask_message "Установить SpeedTest ? (y/n):"
-read -p answer
-if [[ "$answer" == "y" ]]; then
-    curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | sudo bash
-    if [ $? -ne 0 ]; then
-      exit 1
-      error_message "Ошибка установки Speedtest CLI"
+if command -v speedtest > /dev/null 2>&1; then
+    success_message "Speedtest CLI уже установлен."
+else
+    read -p "$(echo -e "${YELLOW}Установить SpeedTest ? (y/n): ${NC}")" answer
+    if [[ "$answer" == "y" ]]; then
+        # Установка Speedtest CLI
+        if bash <(curl -Ls https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh) && apt install -y speedtest-cli; then
+            rm -f /etc/apt/sources.list.d/ookla_speedtest-cli.list
+            success_message "Speedtest CLI успешно установлен."
+        else
+            error_message "Ошибка установки Speedtest CLI."
+            exit 1
+        fi
+    else
+        warning_message "Speedtest CLI НЕ установлен."
     fi
-    apt install speedtest-cli
-    rm -f /etc/apt/sources.list.d/ookla_speedtest-cli.list
-    success_message "Speedtest CLI успешно установлен"
 fi
+
 
 echo ""
 
 # Финальное сообщение
 echo "============================================================================="
 if [[ -f /etc/ssl/certs/3x-ui-public.key ]]; then
-    success_message " Установка завершена, SSL-сертификат сгенерирован и прописан в панель 3X-UI"
-    warning_message " Для применения изменений необходимо перезагрузить панель,"
-    warning_message " выполнив команду sudo x-ui затем вводим 13 и жмем Enter"
+    info_message " Установка завершена, SSL-сертификат сгенерирован и прописан в панель 3X-UI"
+    info_message " Для применения изменений необходимо перезагрузить панель, выполнив команду:"
+    echo "sudo x-ui затем вводим 13 и жмем Enter"
 else
-    success_message " Установка 3X-UI панели завершена, вход в панель не защищен!"
+    warning_message " Установка 3X-UI панели завершена, вход в панель не защищен!"
 fi
 echo "============================================================================="
