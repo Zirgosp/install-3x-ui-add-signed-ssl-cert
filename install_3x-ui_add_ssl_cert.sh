@@ -84,7 +84,7 @@ get_3x_ui_port() {
     PORT=$(sudo x-ui settings | grep -i 'port' | grep -oP '\d+')
     if [[ -z "$PORT" ]]; then
         warning_message "Не удалось автоматически определить порт 3x-UI."
-        read -p "$(echo -e "${YELLOW}Введите номер порта 3x-UI панели:${NC}"
+        read -p "$(echo -e "${YELLOW}Введите номер порта 3x-UI панели:${NC}")"
         read -r PORT
     fi
     echo "$PORT"
@@ -185,7 +185,7 @@ echo "==========================================================================
 if [[ -f /etc/ssl/certs/3x-ui-public.key ]]; then
     info_message " Установка завершена, SSL-сертификат сгенерирован и прописан в панель 3X-UI"
     info_message " Для применения изменений необходимо перезагрузить панель, выполнив команду:"
-    echo "sudo x-ui затем вводим 13 и жмем Enter"
+    echo -e "${CYAN}   sudo x-ui затем вводим 13 и жмем Enter ${NC}"
 else
     warning_message " Установка 3X-UI панели завершена, вход в панель не защищен!"
 fi
