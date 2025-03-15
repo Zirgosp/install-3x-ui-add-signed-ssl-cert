@@ -15,11 +15,11 @@
 ### 1. Скопировать и вставить этот код в терминале после подключения через SSH к серверу VDS/VPS
 #### это выполняется из под root
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/SibMan54/install-3x-ui-add-signed-ssl-cert/refs/heads/main/install_3x-ui_add_ssl_cert.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/Zirgosp/install-3x-ui-add-signed-ssl-cert/refs/heads/main/install_3x-ui_add_ssl_cert.sh)
 ```
 #### это выполняетя из под обычного пользователя
 ```bash
-rm -rf ~/install-3x-ui-add-signed-ssl-cert && git clone https://github.com/SibMan54/install-3x-ui-add-signed-ssl-cert.git && cd install-3x-ui-add-signed-ssl-cert && sudo chmod +x install_3x-ui_add_ssl_cert.sh && sudo ./install_3x-ui_add_ssl_cert.sh
+rm -rf ~/install-3x-ui-add-signed-ssl-cert && git clone https://github.com/Zirgosp/install-3x-ui-add-signed-ssl-cert.git && cd install-3x-ui-add-signed-ssl-cert && sudo chmod +x install_3x-ui_add_ssl_cert.sh && sudo ./install_3x-ui_add_ssl_cert.sh
 ```
 
 
